@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Offender Risk Flags</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --font: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+    --high-bg:     #FFF5F5; --high-icon-bg: #FCEBEB; --high-border: #F09595;
+    --high-text:   #791F1F; --high-toggle:  #E24B4A;
+    --med-bg:      #FFF8EC; --med-icon-bg:  #FAEEDA; --med-border:  #FAC775;
+    --med-text:    #633806; --med-toggle:   #BA7517;
+    --info-bg:     #EBF4FF; --info-icon-bg: #E6F1FB; --info-border: #85B7EB;
+    --info-text:   #0C447C; --info-toggle:  #378ADD;
+    --border:      #E8E6DF;
+    --bg-primary:  #FFFFFF;
+    --bg-secondary:#F5F4F0;
+    --text-primary:#201F1E;
+    --text-sec:    #605E5C;
+    --text-hint:   #A19F9D;
+    --toggle-off:  #C8C6C4;
+  }
+
+  body {
+    font-family: var(--font);
+    background: transparent;
+    padding: 4px;
+    color: var(--text-primary);
+    font-size: 13px;
+  }
+
+  /* ── Error / Info banners ── */
+  .banner {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 12px; border-radius: 6px; margin-bottom: 8px; font-size: 12px;
+  }
+  .banner-error   { background: #FCEBEB; border: .5px solid #F09595; color: #791F1F; }
+  .banner-loading { background: #EBF4FF; border: .5px solid #85B7EB; color: #0C447C; }
+  .banner-dismiss {
+    background: none; border: none; cursor: pointer; font-size: 14px;
+    color: inherit; padding: 0 2px; line-height: 1;
+  }
+
+  /* ── Main container ── */
+  .flags-container {
+    border: .5px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    background: var(--bg-primary);
+  }
+
+  /* ── Two-column grid ── */
+  .flags-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+  .col-left  { border-right: .5px solid var(--border); }
+  .col-right {}
+
+  /* ── Individual flag row ── */
+  .flag-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 13px;
+    cursor: pointer;
+    border-bottom: .5px solid var(--border);
+    transition: background .15s;
+    outline: none;
+    user-select: none;
+  }
+  .flag-row:last-child { border-bottom: none; }
+  .flag-row:hover:not(.readonly):not(.saving) { background: var(--bg-secondary); }
+  .flag-row:focus-visible { box-shadow: inset 0 0 0 2px #378ADD; }
+  .flag-row.readonly { cursor: default; }
+  .flag-row.saving   { opacity: .55; cursor: default; }
+
+  /* active states by severity */
+  .flag-row.active-high   { background: var(--high-bg); }
+  .flag-row.active-medium { background: var(--med-bg);  }
+  .flag-row.active-info   { background: var(--info-bg); }
+
+  /* ── Icon badge ── */
+  .flag-icon-wrap {
+    width: 32px; height: 32px; border-radius: 7px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    border: .5px solid var(--border);
+    background: var(--bg-secondary);
+    transition: background .15s, border-color .15s, color .15s;
+    color: var(--text-hint);
+  }
+  .flag-icon-wrap svg { width: 15px; height: 15px; }
+  .active-high   .flag-icon-wrap { background: var(--high-icon-bg); border-color: var(--high-border); color: var(--high-text); }
+  .active-medium .flag-icon-wrap { background: var(--med-icon-bg);  border-color: var(--med-border);  color: var(--med-text);  }
+  .active-info   .flag-icon-wrap { background: var(--info-icon-bg); border-color: var(--info-border); color: var(--info-text); }
+
+  /* ── Text block ── */
+  .flag-text  { flex: 1; min-width: 0; overflow: hidden; }
+  .flag-name  {
+    font-size: 12px; font-weight: 500; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis;
+    color: var(--text-primary); transition: color .15s;
+  }
+  .flag-desc  {
+    font-size: 11px; margin-top: 1px; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis;
+    color: var(--text-hint); transition: color .15s;
+  }
+  .active-high   .flag-name, .active-high   .flag-desc { color: var(--high-text); }
+  .active-medium .flag-name, .active-medium .flag-desc { color: var(--med-text); }
+  .active-info   .flag-name, .active-info   .flag-desc { color: var(--info-text); }
+
+  /* ── Status pill ── */
+  .flag-status {
+    font-size: 10px; font-weight: 500; padding: 2px 7px; border-radius: 999px;
+    background: var(--bg-secondary); color: var(--text-hint);
+    border: .5px solid var(--border); flex-shrink: 0;
+    transition: all .15s;
+  }
+  .active-high   .flag-status { background: var(--high-icon-bg); color: var(--high-text); border-color: var(--high-border); }
+  .active-medium .flag-status { background: var(--med-icon-bg);  color: var(--med-text);  border-color: var(--med-border); }
+  .active-info   .flag-status { background: var(--info-icon-bg); color: var(--info-text); border-color: var(--info-border); }
+
+  /* ── Toggle switch ── */
+  .toggle {
+    width: 34px; height: 18px; border-radius: 999px;
+    background: var(--toggle-off); position: relative;
+    flex-shrink: 0; transition: background .18s;
+  }
+  .toggle-knob {
+    position: absolute; top: 2px; left: 2px;
+    width: 14px; height: 14px; border-radius: 50%;
+    background: #fff; transition: left .18s;
+  }
+  .active-high   .toggle { background: var(--high-toggle); }
+  .active-medium .toggle { background: var(--med-toggle); }
+  .active-info   .toggle { background: var(--info-toggle); }
+  .active-high .toggle .toggle-knob,
+  .active-medium .toggle .toggle-knob,
+  .active-info .toggle .toggle-knob { left: 18px; }
+
+  /* ── Empty pad cell ── */
+  .col-pad { background: var(--bg-secondary); min-height: 53px; }
+
+  /* ── Summary bar ── */
+  .summary-bar {
+    padding: 8px 13px;
+    background: var(--bg-secondary);
+    border-top: .5px solid var(--border);
+    font-size: 11px;
+    display: flex; align-items: center; flex-wrap: wrap; gap: 5px;
+    color: var(--text-hint);
+  }
+  .summary-label { font-weight: 500; color: #791F1F; }
+  .summary-chip {
+    font-size: 10px; font-weight: 500; padding: 2px 7px; border-radius: 999px;
+  }
+  .chip-high   { background: var(--high-icon-bg); color: var(--high-text); border: .5px solid var(--high-border); }
+  .chip-medium { background: var(--med-icon-bg);  color: var(--med-text);  border: .5px solid var(--med-border); }
+  .chip-info   { background: var(--info-icon-bg); color: var(--info-text); border: .5px solid var(--info-border); }
+
+  /* ── Loading skeleton ── */
+  .skeleton-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 13px; border-bottom: .5px solid var(--border);
+  }
+  .skel { background: var(--bg-secondary); border-radius: 4px; animation: pulse 1.4s ease-in-out infinite; }
+  .skel-icon { width: 32px; height: 32px; border-radius: 7px; flex-shrink: 0; }
+  .skel-line { height: 11px; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.45} }
+
+  /* ── Modal overlay ── */
+  .modal-backdrop {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,.38);
+    align-items: center; justify-content: center;
+    z-index: 9999;
+  }
+  .modal-backdrop.open { display: flex; }
+  .modal {
+    background: var(--bg-primary);
+    border: .5px solid rgba(0,0,0,.2);
+    border-radius: 12px; padding: 20px;
+    width: 320px; max-width: 92vw;
+  }
+  .modal-icon-wrap {
+    width: 40px; height: 40px; border-radius: 9px;
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 12px; border: .5px solid;
+  }
+  .modal-icon-wrap svg { width: 18px; height: 18px; }
+  .modal-title { font-size: 14px; font-weight: 500; margin-bottom: 7px; }
+  .modal-desc  { font-size: 12px; color: var(--text-sec); line-height: 1.55; margin-bottom: 18px; }
+  .modal-actions { display: flex; gap: 8px; justify-content: flex-end; }
+  .btn {
+    padding: 7px 15px; border-radius: 6px; font-size: 12px; font-weight: 500;
+    cursor: pointer; border: none; font-family: var(--font);
+  }
+  .btn-cancel {
+    background: var(--bg-primary); color: var(--text-primary);
+    border: .5px solid rgba(0,0,0,.25);
+  }
+  .btn-cancel:hover { background: var(--bg-secondary); }
+  .btn-confirm-add    { background: #378ADD; color: #fff; }
+  .btn-confirm-remove { background: #605E5C; color: #fff; }
+  .btn-confirm-add:hover    { background: #2a6fb5; }
+  .btn-confirm-remove:hover { background: #484645; }
+</style>
+</head>
+<body>
+
+<div id="banner-area"></div>
+<div id="flags-container" class="flags-container" style="display:none"></div>
+
+<!-- Confirm/Remove modal -->
+<div id="modal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modal-title" aria-describedby="modal-desc">
+  <div class="modal">
+    <div id="modal-icon" class="modal-icon-wrap"></div>
+    <div id="modal-title" class="modal-title"></div>
+    <div id="modal-desc"  class="modal-desc"></div>
+    <div class="modal-actions">
+      <button class="btn btn-cancel" onclick="closeModal()">Cancel</button>
+      <button id="modal-confirm" class="btn"></button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────────────────────────────────────
+// CONFIG — adjust these to match your Dataverse environment
+// ─────────────────────────────────────────────────────────────────────────────
+const CONFIG = {
+  // Logical name of the offender/contact entity
+  entityLogicalName: "contact",
+
+  // N:N relationship navigation property name (check Relationships in maker portal)
+  relationshipName: "cr_contact_clientflag",
+
+  // OData entity set name for the flag table (cr_ prefix + table schema name + s)
+  flagEntitySetName: "cr_clientflags",
+
+  // Logical name of the flag table's primary key column
+  flagPrimaryKey: "cr_clientflagid",
+
+  // API version
+  apiVersion: "9.2",
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SVG ICONS — keyed by cr_iconname value
+// ─────────────────────────────────────────────────────────────────────────────
+const ICONS = {
+  hand:    `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 11V6a2 2 0 0 0-4 0v5"/><path d="M14 10V4a2 2 0 0 0-4 0v6"/><path d="M10 10.5V6a2 2 0 0 0-4 0v8"/><path d="M6 14a4 4 0 0 0 4 4h4a4 4 0 0 0 4-4v-2.5"/></svg>`,
+  warning: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`,
+  eye:     `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`,
+  lock:    `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`,
+  shield:  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`,
+  block:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>`,
+  alert:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`,
+  user:    `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`,
+  flag:    `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>`,
+};
+
+const SEVERITY_MAP = { 1: "high", 2: "medium", 3: "info" };
+
+// ─────────────────────────────────────────────────────────────────────────────
+// STATE
+// ─────────────────────────────────────────────────────────────────────────────
+let _recordId   = null;  // GUID of the current offender record
+let _allFlags   = [];    // Array of { id, name, description, iconName, severity }
+let _activeIds  = new Set();
+let _savingIds  = new Set();
+let _pendingModal = null; // { flagId, isRemoving }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// BOOTSTRAP — called when page loads
+// ─────────────────────────────────────────────────────────────────────────────
+window.addEventListener("load", async () => {
+  try {
+    // 1. Get the record ID from the parent form via Parent.Xrm.Page
+    _recordId = getRecordId();
+
+    if (!_recordId) {
+      showBanner("error", "Could not read record ID from the parent form. Ensure the IFrame is configured to pass record parameters.");
+      return;
+    }
+
+    // 2. Show loading skeleton
+    renderSkeleton();
+
+    // 3. Load flag definitions + existing active flags in parallel
+    const [flags, activeIds] = await Promise.all([
+      loadFlagDefinitions(),
+      loadActiveFlags(_recordId),
+    ]);
+
+    _allFlags  = flags;
+    _activeIds = activeIds;
+
+    // 4. Render
+    render();
+
+  } catch (err) {
+    showBanner("error", "Failed to initialise: " + (err.message || String(err)));
+    console.error("[OffenderFlags]", err);
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Parent.Xrm.Page helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Read the current record GUID from the parent CRM form.
+ * Tries Parent.Xrm.Page (legacy UCI) then Parent.Xrm.Utility / context.
+ */
+function getRecordId() {
+  try {
+    // Primary method — legacy Xrm.Page, still works in UCI when
+    // "Pass record object-type code and unique identifier as parameters" is enabled
+    const xrm = parent && parent.Xrm;
+    if (!xrm) return null;
+
+    // Modern unified client
+    if (xrm.Page && xrm.Page.data && xrm.Page.data.entity) {
+      const id = xrm.Page.data.entity.getId();
+      return id ? id.replace(/[{}]/g, "").toLowerCase() : null;
+    }
+
+    // Fallback: read from URL parameters (?id=... passed by the IFrame config)
+    const params = new URLSearchParams(window.location.search);
+    const idParam = params.get("id");
+    return idParam ? idParam.replace(/[{}]/g, "").toLowerCase() : null;
+
+  } catch (e) {
+    // Cross-origin or access denied — fall back to URL params
+    const params = new URLSearchParams(window.location.search);
+    const idParam = params.get("id");
+    return idParam ? idParam.replace(/[{}]/g, "").toLowerCase() : null;
+  }
+}
+
+/**
+ * Get the Xrm.WebApi instance from the parent frame.
+ * Used for all Dataverse calls so they run in the authenticated session.
+ */
+function getWebApi() {
+  if (parent && parent.Xrm && parent.Xrm.WebApi) {
+    return parent.Xrm.WebApi;
+  }
+  throw new Error("Cannot access parent.Xrm.WebApi. Ensure the web resource is hosted in an IFrame on a model-driven form.");
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DATA LAYER — all calls via parent.Xrm.WebApi
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Load all active flag definitions from cr_clientflag.
+ */
+async function loadFlagDefinitions() {
+  const webApi = getWebApi();
+  const result = await webApi.retrieveMultipleRecords(
+    "cr_clientflag",
+    `?$select=cr_clientflagid,cr_name,cr_description,cr_iconname,cr_severity` +
+    `&$filter=cr_isactive eq true` +
+    `&$orderby=cr_name asc`
+  );
+
+  return (result.entities || []).map(e => ({
+    id:          e.cr_clientflagid,
+    name:        e.cr_name        || "Unnamed Flag",
+    description: e.cr_description || "",
+    iconName:    (e.cr_iconname   || "flag").toLowerCase().trim(),
+    severity:    SEVERITY_MAP[e.cr_severity] || "info",
+  }));
+}
+
+/**
+ * Load GUIDs of flags already linked to the current offender record
+ * via the N:N relationship — single round-trip using $expand.
+ */
+async function loadActiveFlags(recordId) {
+  const webApi = getWebApi();
+  const primaryKey = CONFIG.entityLogicalName + "id";
+  const expand     = CONFIG.relationshipName;
+
+  const result = await webApi.retrieveRecord(
+    CONFIG.entityLogicalName,
+    recordId,
+    `?$select=${primaryKey}&$expand=${expand}($select=${CONFIG.flagPrimaryKey})`
+  );
+
+  const related = result[expand] || [];
+  return new Set(
+    related
+      .map(r => (r[CONFIG.flagPrimaryKey] || "").replace(/[{}]/g, "").toLowerCase())
+      .filter(Boolean)
+  );
+}
+
+/**
+ * Associate a flag with the current offender record.
+ */
+async function associateFlag(flagId) {
+  const webApi = getWebApi();
+  await webApi.associateRecord(
+    CONFIG.entityLogicalName,
+    _recordId,
+    CONFIG.relationshipName,
+    CONFIG.flagEntitySetName,
+    flagId
+  );
+}
+
+/**
+ * Disassociate a flag from the current offender record.
+ */
+async function disassociateFlag(flagId) {
+  const webApi = getWebApi();
+  await webApi.disassociateRecord(
+    CONFIG.entityLogicalName,
+    _recordId,
+    CONFIG.relationshipName,
+    flagId
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TOGGLE HANDLER — optimistic update + rollback
+// ─────────────────────────────────────────────────────────────────────────────
+async function handleToggle(flagId, isCurrentlyActive) {
+  const rollback = new Set(_activeIds);
+
+  // Optimistic update
+  if (isCurrentlyActive) {
+    _activeIds.delete(flagId);
+  } else {
+    _activeIds.add(flagId);
+  }
+  _savingIds.add(flagId);
+  render();
+
+  try {
+    if (isCurrentlyActive) {
+      await disassociateFlag(flagId);
+    } else {
+      await associateFlag(flagId);
+    }
+  } catch (err) {
+    // Roll back on failure
+    _activeIds = rollback;
+    const action = isCurrentlyActive ? "remove" : "add";
+    const flag = _allFlags.find(f => f.id === flagId);
+    showBanner("error", `Failed to ${action} "${flag ? flag.name : flagId}". Please try again.`);
+    console.error("[OffenderFlags] toggle failed:", err);
+  } finally {
+    _savingIds.delete(flagId);
+    render();
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MODAL
+// ─────────────────────────────────────────────────────────────────────────────
+function openModal(flag) {
+  const isRemoving = _activeIds.has(flag.id);
+  _pendingModal = { flagId: flag.id, isRemoving };
+
+  const sev = flag.severity;
+  const colorMap = {
+    high:   { bg: "var(--high-icon-bg)",  border: "var(--high-border)",  text: "var(--high-text)"  },
+    medium: { bg: "var(--med-icon-bg)",   border: "var(--med-border)",   text: "var(--med-text)"   },
+    info:   { bg: "var(--info-icon-bg)",  border: "var(--info-border)",  text: "var(--info-text)"  },
+  };
+  const c = colorMap[sev];
+
+  const iconEl    = document.getElementById("modal-icon");
+  const titleEl   = document.getElementById("modal-title");
+  const descEl    = document.getElementById("modal-desc");
+  const confirmEl = document.getElementById("modal-confirm");
+
+  iconEl.style.background  = c.bg;
+  iconEl.style.borderColor = c.border;
+  iconEl.style.color       = c.text;
+  iconEl.innerHTML         = ICONS[flag.iconName] || ICONS.flag;
+
+  titleEl.textContent = isRemoving
+    ? `Remove "${flag.name}" flag?`
+    : `Add "${flag.name}" flag?`;
+
+  descEl.textContent = isRemoving
+    ? `This will remove the "${flag.name}" flag from this offender's risk profile. You can re-add it at any time.`
+    : `${flag.description ? flag.description + " " : ""}Adding this flag will update the risk profile immediately.`;
+
+  confirmEl.textContent  = isRemoving ? "Remove flag" : "Add flag";
+  confirmEl.className    = "btn " + (isRemoving ? "btn-confirm-remove" : "btn-confirm-add");
+  confirmEl.onclick      = confirmModal;
+
+  document.getElementById("modal").classList.add("open");
+  confirmEl.focus();
+}
+
+function closeModal() {
+  _pendingModal = null;
+  document.getElementById("modal").classList.remove("open");
+}
+
+function confirmModal() {
+  if (!_pendingModal) return;
+  const { flagId, isRemoving } = _pendingModal;
+  closeModal();
+  handleToggle(flagId, isRemoving);
+}
+
+// Close modal on Escape key
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape") closeModal();
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// BANNERS
+// ─────────────────────────────────────────────────────────────────────────────
+function showBanner(type, message) {
+  const area = document.getElementById("banner-area");
+  const div  = document.createElement("div");
+  div.className = "banner banner-" + type;
+  div.innerHTML = `<span>${escHtml(message)}</span>
+    <button class="banner-dismiss" onclick="this.parentElement.remove()" aria-label="Dismiss">×</button>`;
+  area.prepend(div);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RENDER
+// ─────────────────────────────────────────────────────────────────────────────
+function renderSkeleton() {
+  const container = document.getElementById("flags-container");
+  container.style.display = "block";
+  container.innerHTML = `<div style="padding:6px 0">` +
+    [1,2,3,4].map(() => `
+      <div class="skeleton-row">
+        <div class="skel skel-icon"></div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:5px">
+          <div class="skel skel-line" style="width:55%"></div>
+          <div class="skel skel-line" style="width:80%"></div>
+        </div>
+        <div class="skel" style="width:34px;height:18px;border-radius:999px"></div>
+      </div>`).join("") +
+    `</div>`;
+}
+
+function render() {
+  const container = document.getElementById("flags-container");
+  container.style.display = "block";
+
+  if (_allFlags.length === 0) {
+    container.innerHTML = `<div style="padding:22px 14px;text-align:center;font-size:12px;color:var(--text-hint)">
+      No flags configured. Add records to the cr_clientflag table.</div>`;
+    return;
+  }
+
+  const mid  = Math.ceil(_allFlags.length / 2);
+  const col1 = _allFlags.slice(0, mid);
+  const col2 = _allFlags.slice(mid);
+
+  container.innerHTML = `
+    <div class="flags-grid">
+      <div class="col-left">${col1.map(f => flagRowHtml(f)).join("")}</div>
+      <div class="col-right">
+        ${col2.map(f => flagRowHtml(f)).join("")}
+        ${col2.length < col1.length ? `<div class="col-pad"></div>` : ""}
+      </div>
+    </div>
+    ${summaryBarHtml()}
+  `;
+
+  // Attach click handlers (avoid inline handlers with complex data)
+  _allFlags.forEach(flag => {
+    const el = document.getElementById("flag-" + flag.id);
+    if (!el) return;
+    el.addEventListener("click", () => {
+      if (_savingIds.has(flag.id) || el.classList.contains("readonly")) return;
+      openModal(flag);
+    });
+    el.addEventListener("keydown", e => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        if (!_savingIds.has(flag.id) && !el.classList.contains("readonly")) openModal(flag);
+      }
+    });
+  });
+}
+
+function flagRowHtml(flag) {
+  const isActive = _activeIds.has(flag.id);
+  const isSaving = _savingIds.has(flag.id);
+  const sev      = flag.severity;
+  const icon     = ICONS[flag.iconName] || ICONS.flag;
+
+  let classes = "flag-row";
+  if (isActive)  classes += " active-" + sev;
+  if (isSaving)  classes += " saving";
+
+  const statusText = isSaving ? "Saving…" : isActive ? "Active" : "Inactive";
+
+  return `
+    <div id="flag-${escAttr(flag.id)}" class="${classes}"
+         role="button" tabindex="${isSaving ? -1 : 0}"
+         aria-pressed="${isActive}" aria-busy="${isSaving}"
+         aria-label="${escAttr(flag.name)} — ${isActive ? "active, click to remove" : "inactive, click to add"}">
+      <div class="flag-icon-wrap">${icon}</div>
+      <div class="flag-text">
+        <div class="flag-name">${escHtml(flag.name)}</div>
+        ${flag.description ? `<div class="flag-desc">${escHtml(flag.description)}</div>` : ""}
+      </div>
+      <div class="flag-status">${statusText}</div>
+      <div class="toggle"><div class="toggle-knob"></div></div>
+    </div>`;
+}
+
+function summaryBarHtml() {
+  const active = _allFlags.filter(f => _activeIds.has(f.id));
+  if (active.length === 0) {
+    return `<div class="summary-bar">No risk flags active on this profile.</div>`;
+  }
+  const chips = active.map(f =>
+    `<span class="summary-chip chip-${f.severity}">${escHtml(f.name)}</span>`
+  ).join("");
+  return `<div class="summary-bar">
+    <span class="summary-label">${active.length} flag${active.length !== 1 ? "s" : ""} active:</span>
+    ${chips}
+  </div>`;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// UTILS
+// ─────────────────────────────────────────────────────────────────────────────
+function escHtml(str) {
+  return String(str)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+function escAttr(str) {
+  return escHtml(str).replace(/'/g, "&#39;");
+}
+</script>
+</body>
+</html>
