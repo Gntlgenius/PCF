@@ -235,32 +235,75 @@ const CONFIG = {
   entityLogicalName: "contact",
 
   // N:N relationship navigation property name (check Relationships in maker portal)
-  relationshipName: "cr_contact_clientflag",
+  relationshipName: "acc_contact_acc_clientflag",
 
-  // OData entity set name for the flag table (cr_ prefix + table schema name + s)
-  flagEntitySetName: "cr_clientflags",
+  // OData entity set name for the flag table (acc_ prefix + table schema name + s)
+  flagEntitySetName: "acc_clientflags",
 
   // Logical name of the flag table's primary key column
-  flagPrimaryKey: "cr_clientflagid",
+  flagPrimaryKey: "acc_clientflagid",
 
   // API version
   apiVersion: "9.2",
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SVG ICONS — keyed by cr_iconname value
+// SVG ICON CACHE — loaded from acc_iconurl web resource URLs at runtime
 // ─────────────────────────────────────────────────────────────────────────────
-const ICONS = {
-  hand:    `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 11V6a2 2 0 0 0-4 0v5"/><path d="M14 10V4a2 2 0 0 0-4 0v6"/><path d="M10 10.5V6a2 2 0 0 0-4 0v8"/><path d="M6 14a4 4 0 0 0 4 4h4a4 4 0 0 0 4-4v-2.5"/></svg>`,
-  warning: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`,
-  eye:     `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`,
-  lock:    `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`,
-  shield:  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`,
-  block:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>`,
-  alert:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`,
-  user:    `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`,
-  flag:    `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>`,
-};
+
+// In-memory cache: url → svg string (or FALLBACK_SVG on error)
+const _svgCache = new Map();
+
+// Shown when a flag has no URL or the fetch fails
+const FALLBACK_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>`;
+
+/**
+ * Fetch an SVG from a web resource URL and return its inner content.
+ * Results are cached so each unique URL is only fetched once per session.
+ *
+ * Accepts both absolute URLs and Dataverse-relative paths:
+ *   /WebResources/acc_hand_icon        (relative — resolved against origin)
+ *   https://org.crm.dynamics.com/...   (absolute)
+ */
+async function fetchSvg(url) {
+  if (!url) return FALLBACK_SVG;
+
+  // Normalise relative paths to absolute using the parent origin
+  const resolvedUrl = url.startsWith("http")
+    ? url
+    : window.location.origin + (url.startsWith("/") ? url : "/" + url);
+
+  if (_svgCache.has(resolvedUrl)) return _svgCache.get(resolvedUrl);
+
+  try {
+    const res = await fetch(resolvedUrl, { credentials: "same-origin" });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const text = await res.text();
+
+    // Strip XML declaration / doctype and extract just the <svg ...>...</svg> block
+    const match = text.match(/<svg[\s\S]*<\/svg>/i);
+    const svg   = match ? match[0] : FALLBACK_SVG;
+
+    // Ensure stroke inherits colour from CSS so severity tinting works
+    const tinted = svg.replace(/<svg/, '<svg style="width:15px;height:15px" ');
+
+    _svgCache.set(resolvedUrl, tinted);
+    return tinted;
+  } catch (err) {
+    console.warn("[OffenderFlags] Could not load SVG from:", resolvedUrl, err.message);
+    _svgCache.set(resolvedUrl, FALLBACK_SVG); // cache the fallback to avoid retrying
+    return FALLBACK_SVG;
+  }
+}
+
+/**
+ * Pre-fetch all unique icon URLs in parallel so render() has them ready.
+ * Called once after loadFlagDefinitions() resolves.
+ */
+async function prefetchAllIcons(flags) {
+  const uniqueUrls = [...new Set(flags.map(f => f.iconUrl).filter(Boolean))];
+  await Promise.allSettled(uniqueUrls.map(url => fetchSvg(url)));
+}
 
 const SEVERITY_MAP = { 1: "high", 2: "medium", 3: "info" };
 
@@ -298,7 +341,10 @@ window.addEventListener("load", async () => {
     _allFlags  = flags;
     _activeIds = activeIds;
 
-    // 4. Render
+    // 4. Pre-fetch all SVG icons in parallel (cached for the session)
+    await prefetchAllIcons(flags);
+
+    // 5. Render
     render();
 
   } catch (err) {
@@ -357,23 +403,24 @@ function getWebApi() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Load all active flag definitions from cr_clientflag.
+ * Load all active flag definitions from acc_clientflag.
+ * acc_iconurl holds the path to the SVG web resource, e.g. /WebResources/acc_hand_icon
  */
 async function loadFlagDefinitions() {
   const webApi = getWebApi();
   const result = await webApi.retrieveMultipleRecords(
-    "cr_clientflag",
-    `?$select=cr_clientflagid,cr_name,cr_description,cr_iconname,cr_severity` +
-    `&$filter=cr_isactive eq true` +
-    `&$orderby=cr_name asc`
+    "acc_clientflag",
+    `?$select=acc_clientflagid,acc_name,acc_description,acc_iconurl,acc_severity` +
+    `&$filter=acc_isactive eq true` +
+    `&$orderby=acc_name asc`
   );
 
   return (result.entities || []).map(e => ({
-    id:          e.cr_clientflagid,
-    name:        e.cr_name        || "Unnamed Flag",
-    description: e.cr_description || "",
-    iconName:    (e.cr_iconname   || "flag").toLowerCase().trim(),
-    severity:    SEVERITY_MAP[e.cr_severity] || "info",
+    id:          e.acc_clientflagid,
+    name:        e.acc_name        || "Unnamed Flag",
+    description: e.acc_description || "",
+    iconUrl:     (e.acc_iconurl    || "").trim(),
+    severity:    SEVERITY_MAP[e.acc_severity] || "info",
   }));
 }
 
@@ -484,7 +531,10 @@ function openModal(flag) {
   iconEl.style.background  = c.bg;
   iconEl.style.borderColor = c.border;
   iconEl.style.color       = c.text;
-  iconEl.innerHTML         = ICONS[flag.iconName] || ICONS.flag;
+  iconEl.innerHTML         = _svgCache.get(
+    flag.iconUrl.startsWith("http") ? flag.iconUrl
+      : window.location.origin + (flag.iconUrl.startsWith("/") ? flag.iconUrl : "/" + flag.iconUrl)
+  ) || FALLBACK_SVG;
 
   titleEl.textContent = isRemoving
     ? `Remove "${flag.name}" flag?`
@@ -556,7 +606,7 @@ function render() {
 
   if (_allFlags.length === 0) {
     container.innerHTML = `<div style="padding:22px 14px;text-align:center;font-size:12px;color:var(--text-hint)">
-      No flags configured. Add records to the cr_clientflag table.</div>`;
+      No flags configured. Add records to the acc_clientflag table.</div>`;
     return;
   }
 
@@ -596,7 +646,10 @@ function flagRowHtml(flag) {
   const isActive = _activeIds.has(flag.id);
   const isSaving = _savingIds.has(flag.id);
   const sev      = flag.severity;
-  const icon     = ICONS[flag.iconName] || ICONS.flag;
+  const icon     = _svgCache.get(
+    flag.iconUrl.startsWith("http") ? flag.iconUrl
+      : window.location.origin + (flag.iconUrl.startsWith("/") ? flag.iconUrl : "/" + flag.iconUrl)
+  ) || FALLBACK_SVG;
 
   let classes = "flag-row";
   if (isActive)  classes += " active-" + sev;
