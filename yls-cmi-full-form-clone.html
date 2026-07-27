@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Data Gatherer | YLS/CMI 2.0</title>
+<style>
+*{box-sizing:border-box;font-family:'Segoe UI',Arial,sans-serif;}
+body{background:#e5e7ea;margin:0;padding:40px 20px;}
+.ycard{background:#eef0f2;border-radius:10px;overflow:hidden;border:1px solid #dcdfe3;max-width:640px;margin:0 auto;box-shadow:0 2px 10px rgba(0,0,0,0.06);}
+.yhead{background:#2b4d54;color:#fff;text-align:center;padding:16px 20px;font-size:14px;letter-spacing:3px;font-weight:600;}
+.ybody{padding:22px 24px 26px;background:#eef0f2;}
+.ystepper{position:relative;display:flex;justify-content:center;gap:8px;margin-bottom:20px;}
+.ystepper::after{content:'';position:absolute;left:40px;right:40px;top:50%;height:1px;background:#d1d5db;z-index:0;}
+.ytab{position:relative;z-index:1;display:flex;align-items:center;gap:6px;padding:8px 14px;border-radius:8px;font-size:12px;font-weight:500;color:#2f6a8f;background:#eef0f2;border:none;cursor:pointer;}
+.ytab.active{background:#2f6fed;color:#fff;}
+.ysection{position:relative;border:1px solid #d1d5db;border-radius:4px;padding:22px 20px 4px;margin-top:20px;}
+.ysection:first-child{margin-top:0;}
+.ysection-title{position:absolute;top:-9px;left:14px;background:#eef0f2;padding:0 8px;font-size:12px;font-weight:600;color:#374151;}
+.yfield{display:flex;gap:10px;align-items:flex-start;padding:14px 0;border-bottom:1px solid #d1d5db;}
+.ysection .yfield:first-child{padding-top:0;}
+.ysection .yfield:last-child{border-bottom:none;padding-bottom:18px;}
+.ylabel{font-size:11px;color:#4b5563;margin-bottom:5px;}
+.ytext{width:100%;height:32px;border:1px solid #cfd4da;border-radius:4px;padding:0 30px 0 10px;font-size:12px;color:#111827;background:#fdfdfe;}
+.ywrap{position:relative;flex:1;}
+.ycheck{position:absolute;right:8px;bottom:9px;color:#22c55e;font-size:13px;line-height:1;display:none;}
+.ydot{width:14px;height:14px;border-radius:50%;background:#22c55e;color:#fff;align-items:center;justify-content:center;font-size:9px;margin-top:15px;flex-shrink:0;display:none;}
+.ydot.yinline{margin-top:1px;}
+.yreq{width:13px;height:13px;border-radius:50%;background:#ef4444;color:#fff;font-size:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;}
+.ynum{font-size:11px;color:#6b7280;font-weight:600;flex-shrink:0;width:14px;}
+.yqtext{font-size:11.5px;color:#111827;font-weight:500;}
+.yopts{display:flex;gap:14px;font-size:11px;color:#374151;margin-top:6px;}
+.yopt{display:flex;align-items:center;gap:4px;}
+.yradio-input{width:12px;height:12px;border-radius:50%;border:1.5px solid #9ca3af;appearance:none;-webkit-appearance:none;outline:none;margin:0;cursor:pointer;position:relative;flex-shrink:0;}
+.yradio-input:checked{border-color:#2f6fed;}
+.yradio-input:checked::after{content:'';position:absolute;top:2px;left:2px;width:6px;height:6px;border-radius:50%;background:#2f6fed;}
+.yinfo{width:16px;height:16px;border-radius:50%;background:#2f6fed;color:#fff;font-size:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.yactions{display:flex;justify-content:space-between;align-items:center;margin-top:20px;}
+.yright{display:flex;gap:8px;}
+.ybtn{border:none;padding:7px 16px;border-radius:6px;font-size:11.5px;font-weight:500;cursor:pointer;background:#2f6fed;color:#fff;}
+.yicon{background:#2f6fed;color:#fff;width:30px;height:30px;border-radius:6px;display:flex;align-items:center;justify-content:center;border:none;cursor:pointer;flex-shrink:0;}
+.ydob{display:flex;gap:8px;margin-top:5px;}
+</style>
+</head>
+<body>
+<div class="ycard">
+  <div class="yhead">DATA GATHERER&nbsp;&nbsp;|&nbsp;&nbsp;YLS/CMI 2.0</div>
+  <div class="ybody">
+    <div class="ystepper">
+      <button class="ytab active" id="ybtn-general" onclick="ySwitch('general')">&#10003; General information</button>
+      <button class="ytab" id="ybtn-part1" onclick="ySwitch('part1')">&#9432; Part 1</button>
+      <button class="ytab" id="ybtn-part2" onclick="ySwitch('part2')">&#10003; Part 2</button>
+    </div>
+
+    <div id="ytab-general">
+      <div class="ysection">
+        <div class="yfield"><div class="ydot">&#10003;</div><div class="ywrap"><div class="ylabel">Name of Assessed / Offender Name</div><input class="ytext" type="text" placeholder="Enter offender name"><span class="ycheck">&#10003;</span></div></div>
+        <div class="yfield"><div class="ydot">&#10003;</div><div class="ywrap">
+          <div class="ylabel">Gender</div>
+          <div style="display:flex;gap:16px;font-size:12px;color:#111827;">
+            <label style="display:flex;align-items:center;gap:5px;"><input type="radio" name="gender" class="yradio-input">Male</label>
+            <label style="display:flex;align-items:center;gap:5px;"><input type="radio" name="gender" class="yradio-input">Female</label>
+          </div>
+        </div></div>
+        <div class="yfield"><div class="ydot">&#10003;</div><div class="ywrap"><div class="ylabel">Age</div><input class="ytext" type="text" placeholder="Enter age"><span class="ycheck">&#10003;</span></div></div>
+        <div class="yfield"><div class="ydot">&#10003;</div><div class="ywrap">
+          <div class="ylabel">Date of Birth</div>
+          <div class="ydob">
+            <div class="ywrap"><input class="ytext" type="text" placeholder="Month"><span class="ycheck">&#10003;</span></div>
+            <div class="ywrap"><input class="ytext" type="text" placeholder="Day"><span class="ycheck">&#10003;</span></div>
+            <div class="ywrap"><input class="ytext" type="text" placeholder="Year"><span class="ycheck">&#10003;</span></div>
+          </div>
+        </div></div>
+        <div class="yfield"><div class="ydot">&#10003;</div><div class="ywrap"><div class="ylabel">Race / Ethnicity</div><input class="ytext" type="text" placeholder="Enter race / ethnicity"><span class="ycheck">&#10003;</span></div></div>
+        <div class="yfield"><div class="ydot">&#10003;</div><div class="ywrap"><div class="ylabel">Identifying Number / Offender ID Number</div><input class="ytext" type="text" placeholder="Enter ID number"><span class="ycheck">&#10003;</span></div></div>
+        <div class="yfield"><div class="ydot">&#10003;</div><div class="ywrap"><div class="ylabel">Interviewer / Assessor's Name</div><input class="ytext" type="text" placeholder="Enter interviewer name"><span class="ycheck">&#10003;</span></div></div>
+        <div class="yfield"><div class="ydot">&#10003;</div><div class="ywrap">
+          <div class="ylabel">Date of Test Administration / Interview Date</div>
+          <div class="ydob">
+            <div class="ywrap"><input class="ytext" type="text" placeholder="Month"><span class="ycheck">&#10003;</span></div>
+            <div class="ywrap"><input class="ytext" type="text" placeholder="Day"><span class="ycheck">&#10003;</span></div>
+            <div class="ywrap"><input class="ytext" type="text" placeholder="Year"><span class="ycheck">&#10003;</span></div>
+          </div>
+        </div></div>
+      </div>
+      <div class="yactions"><button class="yicon" aria-label="Back">&#8592;</button><div class="yright"><button class="ybtn">Next</button><button class="ybtn">Export Draft</button><button class="ybtn">Done</button></div></div>
+    </div>
+
+    <div id="ytab-part1" style="display:none;">
+      <div class="ysection">
+        <div class="ysection-title">Part 1.1 - Prior and Current Offenses/Dispositions</div>
+        <div class="yfield"><div class="ywrap"><div class="ylabel">Part 1.1 Comments</div><input class="ytext" type="text" placeholder="Enter comments"><span class="ycheck">&#10003;</span></div></div>
+        <div class="yfield"><div class="ywrap"><div class="ylabel">Part 1.1 Sources of Information</div><input class="ytext" type="text" placeholder="Enter sources"><span class="ycheck">&#10003;</span></div></div>
+        <div class="yfield"><div class="yreq">!</div><div class="yqtext" style="flex:1;">a. Three or more prior convictions *<div class="yopts"><span class="yopt"><input type="radio" name="p1a" class="yradio-input">Yes</span><span class="yopt"><input type="radio" name="p1a" class="yradio-input">No</span><span class="yopt"><input type="radio" name="p1a" class="yradio-input">Omit</span></div></div><div class="yinfo">i</div></div>
+        <div class="yfield"><div class="yreq">!</div><div class="yqtext" style="flex:1;">b. Two or more failures to comply *<div class="yopts"><span class="yopt"><input type="radio" name="p1b" class="yradio-input">Yes</span><span class="yopt"><input type="radio" name="p1b" class="yradio-input">No</span><span class="yopt"><input type="radio" name="p1b" class="yradio-input">Omit</span></div></div><div class="yinfo">i</div></div>
+        <div class="yfield"><div class="yreq">!</div><div class="yqtext" style="flex:1;">c. Prior probation *<div class="yopts"><span class="yopt"><input type="radio" name="p1c" class="yradio-input">Yes</span><span class="yopt"><input type="radio" name="p1c" class="yradio-input">No</span><span class="yopt"><input type="radio" name="p1c" class="yradio-input">Omit</span></div></div><div class="yinfo">i</div></div>
+        <div class="yfield"><div class="yreq">!</div><div class="yqtext" style="flex:1;">d. Prior custody *<div class="yopts"><span class="yopt"><input type="radio" name="p1d" class="yradio-input">Yes</span><span class="yopt"><input type="radio" name="p1d" class="yradio-input">No</span><span class="yopt"><input type="radio" name="p1d" class="yradio-input">Omit</span></div></div><div class="yinfo">i</div></div>
+        <div class="yfield"><div class="yreq">!</div><div class="yqtext" style="flex:1;">e. Three or more current convictions *<div class="yopts"><span class="yopt"><input type="radio" name="p1e" class="yradio-input">Yes</span><span class="yopt"><input type="radio" name="p1e" class="yradio-input">No</span><span class="yopt"><input type="radio" name="p1e" class="yradio-input">Omit</span></div></div><div class="yinfo">i</div></div>
+      </div>
+      <div class="ysection">
+        <div class="ysection-title">Part 1.2 - Family Circumstances/Parenting</div>
+        <div class="yfield"><div class="ywrap"><div class="ylabel">Part 1.2 Comments</div><input class="ytext" type="text" placeholder="Enter comments"><span class="ycheck">&#10003;</span></div></div>
+      </div>
+      <div class="yactions"><button class="yicon" aria-label="Back">&#8592;</button><div class="yright"><button class="ybtn">Next</button><button class="ybtn">Export Draft</button><button class="ybtn">Done</button></div></div>
+    </div>
+
+    <div id="ytab-part2" style="display:none;">
+      <div class="ysection">
+        <div class="ysection-title">Part 2: Family/Parent</div>
+        <div class="yfield"><div class="ywrap"><div class="ylabel">Comments</div><input class="ytext" type="text" placeholder="Enter comments"><span class="ycheck">&#10003;</span></div></div>
+        <div class="yfield"><div class="ydot yinline">&#10003;</div><div class="ynum">1.</div><div class="yqtext" style="flex:1;">Chronic History of Offenses<div class="yopts"><span class="yopt"><input type="radio" name="p2q1" class="yradio-input">Yes</span><span class="yopt"><input type="radio" name="p2q1" class="yradio-input">No</span></div></div><div class="yinfo">i</div></div>
+        <div class="yfield"><div class="ydot yinline">&#10003;</div><div class="ynum">2.</div><div class="yqtext" style="flex:1;">Emotional Distress/Psychiatric<div class="yopts"><span class="yopt"><input type="radio" name="p2q2" class="yradio-input">Yes</span><span class="yopt"><input type="radio" name="p2q2" class="yradio-input">No</span></div></div><div class="yinfo">i</div></div>
+        <div class="yfield"><div class="ydot yinline">&#10003;</div><div class="ynum">3.</div><div class="yqtext" style="flex:1;">Drug/Alcohol Abuse (Family/Parents)<div class="yopts"><span class="yopt"><input type="radio" name="p2q3" class="yradio-input">Yes</span><span class="yopt"><input type="radio" name="p2q3" class="yradio-input">No</span></div></div><div class="yinfo">i</div></div>
+        <div class="yfield"><div class="ydot yinline">&#10003;</div><div class="ynum">4.</div><div class="yqtext" style="flex:1;">Marital Conflict<div class="yopts"><span class="yopt"><input type="radio" name="p2q4" class="yradio-input">Yes</span><span class="yopt"><input type="radio" name="p2q4" class="yradio-input">No</span></div></div><div class="yinfo">i</div></div>
+        <div class="yfield"><div class="ydot yinline">&#10003;</div><div class="ynum">5.</div><div class="yqtext" style="flex:1;">Financial/Accommodation Problems<div class="yopts"><span class="yopt"><input type="radio" name="p2q5" class="yradio-input">Yes</span><span class="yopt"><input type="radio" name="p2q5" class="yradio-input">No</span></div></div><div class="yinfo">i</div></div>
+        <div class="yfield"><div class="ydot yinline">&#10003;</div><div class="ynum">6.</div><div class="yqtext" style="flex:1;">Uncooperative Parent(s)<div class="yopts"><span class="yopt"><input type="radio" name="p2q6" class="yradio-input">Yes</span><span class="yopt"><input type="radio" name="p2q6" class="yradio-input">No</span></div></div><div class="yinfo">i</div></div>
+        <div class="yfield"><div class="ydot yinline">&#10003;</div><div class="ynum">7.</div><div class="yqtext" style="flex:1;">Cultural/Ethnic Issues<div class="yopts"><span class="yopt"><input type="radio" name="p2q7" class="yradio-input">Yes</span><span class="yopt"><input type="radio" name="p2q7" class="yradio-input">No</span></div></div><div class="yinfo">i</div></div>
+      </div>
+      <div class="yactions"><button class="yicon" aria-label="Back">&#8592;</button><div class="yright"><button class="ybtn">Next</button><button class="ybtn">Export Draft</button><button class="ybtn">Done</button></div></div>
+    </div>
+  </div>
+</div>
+<script>
+function ySwitch(name){
+  var tabs=['general','part1','part2'];
+  tabs.forEach(function(t){
+    document.getElementById('ytab-'+t).style.display=(t===name)?'block':'none';
+    var b=document.getElementById('ybtn-'+t);
+    if(t===name){b.classList.add('active');}else{b.classList.remove('active');}
+  });
+}
+function yUpdateFieldStatus(fieldEl){
+  var textInputs = fieldEl.querySelectorAll('.ywrap input[type="text"]');
+  var radios = fieldEl.querySelectorAll('input[type="radio"]');
+  var filled;
+  if(radios.length){
+    filled = Array.prototype.some.call(radios, function(r){return r.checked;});
+  } else if(textInputs.length){
+    filled = Array.prototype.every.call(textInputs, function(i){return i.value.trim()!=='';});
+  } else { filled = false; }
+  var dot = fieldEl.querySelector('.ydot');
+  if(dot){ dot.style.display = filled ? 'flex' : 'none'; }
+  var req = fieldEl.querySelector('.yreq');
+  if(req){
+    if(filled){ req.textContent='✓'; req.style.background='#22c55e'; }
+    else { req.textContent='!'; req.style.background='#ef4444'; }
+  }
+}
+function yToggleInlineCheck(input){
+  var wrap = input.closest('.ywrap');
+  if(!wrap) return;
+  var chk = wrap.querySelector('.ycheck');
+  if(chk){ chk.style.display = input.value.trim()!=='' ? 'block' : 'none'; }
+}
+document.querySelectorAll('.yfield').forEach(function(f){
+  f.querySelectorAll('input[type="text"]').forEach(function(i){
+    i.addEventListener('input', function(){ yToggleInlineCheck(i); yUpdateFieldStatus(f); });
+  });
+  f.querySelectorAll('input[type="radio"]').forEach(function(r){
+    r.addEventListener('change', function(){ yUpdateFieldStatus(f); });
+  });
+  yUpdateFieldStatus(f);
+});
+</script>
+</body>
+</html>
